@@ -66,8 +66,6 @@ concept FromContext = requires(const Context &ctx)
 
 We define a new concept as a type constraint. The concept checks if the class/struct has implemented a static `extract` method for its own type. The `extract` method extracts the needed data from the `Context`.
 
-Technically Concepts and c++20 features are not needed. But the compiler outputs better compile errors when using concepts as template constraints.
-
 For Example:
 ```cpp
 struct Param
@@ -86,33 +84,18 @@ The Handler has a `Context` as Parameter.
 using Handler = std::function<void(Context)>;
 ```
 
-The `callable` helper method does all the magic. It returns a lambda of signature `Handler` and calls the static `extract` method for all parameter types from the given function (in our case Param or Id).
+The `callable` helper method does all the magic. It returns a lambda of signature `Handler` and calls the static `extract` method for all parameter types (fold expressions c++17) from the given function signature.
+The template method is agnostic to the order of parameters and generates combinations for different types like `callable<Id, Param>` and `callable<Param, Id>`.
 
 ```cpp
-template<FromContext T>
-Handler callable(void (*fn)(T))
+template<FromContext... T>
+Handler callable(void (*fn)(T...))
 {
-    return [fn](Context ctx){
-        fn(T::extract(ctx));
+    return [fn](Context context){
+        fn(std::forward<T>(T::extract(context))...);
     };
 }
 ```
-
-To support multiple function parameters the `callable` helper method has to be implemented for 2, 3, 4 and so on template types. The template method is agnostic to the order of parameters and generates combinations for different types like `callable<Id, Param>` and `callable<Param, Id>`.
-
-```cpp
-template<FromContext T1, FromContext T2>
-Handler callable(void(*fn)(T1,T2))
-{
-    return [fn](Context ctx){
-        fn(T1::extract(ctx), T2::extract(ctx));
-    };
-}
-```
-
-Without Concepts and c++20 features, we can replace `FromContext T` with `typename T`.
-##
-
 ## Putting it together
 We can now define a simple trigger function that takes a `Context` and a `Handler`
 ```cpp

@@ -36,26 +36,11 @@ concept FromContext = requires(const Context &context)
 
 using Handler = std::function<void(Context)>;
 
-Handler callable(void (*fn)())
+template<FromContext... T>
+Handler callable(void (*fn)(T...))
 {
     return [fn](Context context){
-        fn();
-    };
-}
-
-template<FromContext T>
-Handler callable(void (*fn)(T))
-{
-    return [fn](Context context){
-        fn(T::extract(context));
-    };
-}
-
-template<FromContext T1, FromContext T2>
-Handler callable(void(*fn)(T1,T2))
-{
-    return [fn](Context context){
-        fn(T1::extract(context), T2::extract(context));
+        fn(std::forward<T>(T::extract(context))...);
     };
 }
 
